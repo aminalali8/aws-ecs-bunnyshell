@@ -62,3 +62,11 @@ API_ID=$(aws apigateway get-rest-apis --query "items[?name=='my-api'].id" --outp
 aws apigateway create-deployment --rest-api-id $API_ID --stage-name prod
 
 echo "Deployment complete."
+# ------------
+
+## DESTRUCTION 
+aws ecs delete-service --cluster my-cluster --service my-service
+aws ecs deregister-task-definition --task-definition my-task
+aws ecs delete-cluster --cluster my-cluster
+aws rds delete-db-instance --db-instance-identifier my-database --skip-final-snapshot
+aws s3 rb s3://my-spa-bucket --force

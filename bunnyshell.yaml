@@ -8,67 +8,81 @@ components:
         runnerImage: 'amazon/aws-cli'
         deploy:
             - | 
-              echo "Creating ECS Cluster..."
-              aws ecs create-cluster --cluster-name my-cluster
+                echo "Creating ECS Cluster..."
+                aws ecs create-cluster --cluster-name my-cluster-{{env.unique}}
 
-              echo "Creating RDS Database..."
-              aws rds create-db-instance \
-                  --db-instance-identifier my-database \
-                  --allocated-storage 20 \
-                  --db-instance-class db.t2.micro \
-                  --engine mysql \
-                  --master-username admin \
-                  --master-user-password mypassword \
-                  --backup-retention-period 7
+                echo "Creating RDS Database..."
+                aws rds create-db-instance \
+                    --db-instance-identifier my-database \
+                    --allocated-storage 20 \
+                    --db-instance-class db.t2.micro \
+                    --engine mysql \
+                    --master-username admin \
+                    --master-user-password mypassword \
+                    --backup-retention-period 7
 
-              echo "Creating S3 Bucket..."
-              aws s3api create-bucket --bucket my-spa-bucket --region us-east-1
+                echo "Creating S3 Bucket..."
+                aws s3api create-bucket --bucket my-spa-bucket --region us-east-1
 
-              echo "Deploying SPA to S3..."
-              aws s3 sync my-spa-folder s3://my-spa-bucket
+                echo "Deploying SPA to S3..."
+                aws s3 sync my-spa-folder s3://my-spa-bucket
 
-              echo "Creating ECS Task Definition..."
-              aws ecs register-task-definition \
-                  --family my-task \
-                  --execution-role-arn ecsTaskExecutionRole \
-                  --container-definitions '[{
-                      "name": "my-container",
-                      "image": "my-container-image",
-                      "portMappings": [{
-                          "containerPort": 80,
-                          "hostPort": 80
-                      }],
-                      "environment": [
-                          {
-                              "name": "DB_HOST",
-                              "value": "my-database-host"
-                          }
-                      ]
-                  }]'
+                echo "Creating ECS Task Definition..."
+                aws ecs register-task-definition \
+                    --family my-task \
+                    --execution-role-arn ecsTaskExecutionRole \
+                    --container-definitions '[{
+                        "name": "my-container",
+                        "image": "my-container-image",
+                        "portMappings": [{
+                            "containerPort": 80,
+                            "hostPort": 80
+                        }],
+                        "environment": [
+                            {
+                                "name": "DB_HOST",
+                                "value": "my-database-host"
+                            }
+                        ]
+                    }]'
 
-              echo "Creating ECS Service..."
-              aws ecs create-service \
-                  --cluster my-cluster \
-                  --service-name my-service \
-                  --task-definition my-task \
-                  --desired-count 2 \
-                  --launch-type EC2
+                echo "Creating ECS Service..."
+                aws ecs create-service \
+                    --cluster my-cluster \
+                    --service-name my-service \
+                    --task-definition my-task \
+                    --desired-count 2 \
+                    --launch-type EC2
 
-              echo "Creating API Gateway..."
-              aws apigateway create-rest-api --name my-api
+                echo "Creating API Gateway..."
+                aws apigateway create-rest-api --name my-api
 
-              echo "Deploying API Gateway..."
-              API_ID=$(aws apigateway get-rest-apis --query "items[?name=='my-api'].id" --output text)
-              aws apigateway create-deployment --rest-api-id $API_ID --stage-name prod
+                echo "Deploying API Gateway..."
+                API_ID=$(aws apigateway get-rest-apis --query "items[?name=='my-api'].id" --output text)
+                aws apigateway create-deployment --rest-api-id $API_ID --stage-name prod
 
-              echo "Deployment complete."
+                echo "Deployment complete."
             - 'SERVICE_URL=$()'
         destroy:
-            - 
+            - |
+                echo "Delete ECS Service..."
+                aws ecs delete-service --cluster my-cluster --service my-service
+
+                echo "Deregister Task Definition..."
+                aws ecs deregister-task-definition --task-definition my-task
+
+                echo "Delete Cluster..."
+                aws ecs delete-cluster --cluster my-cluster
+
+                echo "Delete RDS..."
+                aws rds delete-db-instance --db-instance-identifier my-database --skip-final-snapshot
+
+                echo "Delete S3 Bucket..."
+                aws s3 rb s3://my-spa-bucket --force
         start:
-            - 
+            - echo 'N/A'
         stop:
-            - 
+            - echo 'N/A'
         exportVariables:
             - SERVICE_URL
         version: v1
